@@ -1,86 +1,130 @@
 import { useState, useEffect, useMemo } from 'react'
 
 type Cat = 'Food' | 'Gym' | 'Travel' | 'Shopping' | 'Other'
-type Expense = { id: string, title: string, amount: number, dateISO: string, cat: Cat }
+type Expense = { id: string; title: string; amount: number; dateISO: string; cat: Cat }
 
-const catColor: Record<Cat, string> = { Food: '#FF6B6B', Gym: '#4ECDC4', Travel: '#45B7D1', Shopping: '#FFA600', Other: '#A78BFA' }
-const catEmoji: Record<Cat, string> = { Food: '🍔', Gym: '💪', Travel: '✈️', Shopping: '🛍️', Other: '💸' }
+const catMeta: Record<Cat, {emoji: string, color: string, bg: string}> = {
+  Food: {emoji: '🍔', color: '#FF9E42', bg: '#FFF0E0'},
+  Gym: {emoji: '💪', color: '#A855F7', bg: '#F5E8FF'},
+  Travel: {emoji: '✈️', color: '#22D3EE', bg: '#E0FBFF'},
+  Shopping: {emoji: '🛍️', color: '#F472B6', bg: '#FFE4F0'},
+  Other: {emoji: '💸', color: '#FB7185', bg: '#FFE0E5'},
+}
 
-export default function App() {
-  const [expenses, setExpenses] = useState<Expense[]>(() => JSON.parse(localStorage.getItem('sw-final') || '[]'))
-  const [title, setTitle] = useState(''); const [amount, setAmount] = useState(''); const [cat, setCat] = useState<Cat>('Food')
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0,10))
-  const [viewMonth, setViewMonth] = useState(() => new Date().toISOString().slice(0,7))
+export default function App(){
+  const [expenses, setExpenses] = useState<Expense[]>(()=>{
+    try{ const s=localStorage.getItem('spendwise-final'); return s? JSON.parse(s): [] }catch{ return [] }
+  })
+  const [title, setTitle] = useState('')
+  const [amount, setAmount] = useState('')
+  const [cat, setCat] = useState<Cat>('Food')
+  const [date, setDate] = useState(()=> new Date().toISOString().slice(0,10))
+  const [viewMonth, setViewMonth] = useState(()=> new Date().toISOString().slice(0,7))
 
-  useEffect(() => { localStorage.setItem('sw-final', JSON.stringify(expenses)) }, [expenses])
-  const filtered = useMemo(() => expenses.filter(e=>e.dateISO.startsWith(viewMonth)), [expenses, viewMonth])
-  const totalMonth = filtered.reduce((s,e)=>s+e.amount,0)
+  useEffect(()=>{ localStorage.setItem('spendwise-final', JSON.stringify(expenses)) },[expenses])
 
-  const add = () => { if(!title||!amount) return; setExpenses([{id: Date.now().toString(), title, amount: Number(amount), cat, dateISO: date},...expenses]); setTitle(''); setAmount('') }
-  const del = (id:string) => setExpenses(expenses.filter(e=>e.id!==id))
-  const [y,m] = viewMonth.split('-').map(Number); const daysInMonth = new Date(y,m,0).getDate(); const firstDay = new Date(y,m-1,1).getDay()
-  const daysArr = Array(firstDay).fill(null).concat([...Array(daysInMonth)].map((_,i)=>i+1))
-  const getDayTotal = (day:number) => { const d=`${viewMonth}-${String(day).padStart(2,'0')}`; return expenses.filter(e=>e.dateISO===d).reduce((s,e)=>s+e.amount,0) }
+  const filtered = useMemo(()=> expenses.filter(e=> e.dateISO.startsWith(viewMonth)), [expenses, viewMonth])
+  const total = filtered.reduce((a,b)=> a+b.amount, 0)
 
-  return (
-    <div style={{minHeight: '100vh', background: 'linear-gradient(180deg, #f8f9ff 0%, #fff0f6 100%)', fontFamily: 'system-ui'}}>
-      <div style={{maxWidth: 440, margin: '0 auto', padding: 16, paddingBottom: 100}}>
+  const byCat = useMemo(()=>{
+    const m = new Map<Cat, number>()
+    for(const e of filtered){ m.set(e.cat, (m.get(e.cat)||0)+e.amount) }
+    return Array.from(m.entries()).sort((a,b)=> b[1]-a[1])
+  },[filtered])
 
-        <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10}}>
-          <div><h1 style={{margin: 0, fontSize: 26, fontWeight: 900}}>SpendWise</h1><p style={{margin: 0, opacity: 0.5, fontSize: 12}}>Track smart, spend smarter ✨</p></div>
-          <div style={{width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, #667eea, #764ba2)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 900, fontSize: 24}}>S</div>
+  const add = ()=>{
+    if(!title.trim()||!amount) return
+    const ne: Expense = {id: Date.now().toString(), title: title.trim(), amount: Number(amount), cat, dateISO: date}
+    setExpenses([ne,...expenses]); setTitle(''); setAmount('')
+  }
+  const del = (id:string)=> setExpenses(expenses.filter(e=> e.id!==id))
+
+  // calendar
+  const [year, month] = viewMonth.split('-').map(Number)
+  const daysInMonth = new Date(year, month, 0).getDate()
+  const firstDay = new Date(year, month-1, 1).getDay()
+  const days = Array(firstDay).fill(null).concat(Array.from({length: daysInMonth},(_,i)=> i+1))
+
+  return(
+    <div style={{minHeight:'100vh', background:'#FFF5F7', fontFamily:'system-ui', paddingBottom:90}}>
+      <div style={{maxWidth:440, margin:'0 auto', padding:16}}>
+        <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+          <div><h1 style={{margin:0, fontSize:32, fontWeight:900, letterSpacing:-1}}>SpendWise</h1><p style={{margin:0, color:'#8B8B8B', fontSize:14}}>Track smart, spend smarter ✨</p></div>
+          <div style={{width:48, height:48, borderRadius:16, background:'linear-gradient(135deg,#7B5CFF,#4A7BF7)', display:'grid', placeItems:'center', color:'#fff', fontWeight:900, fontSize:22}}>S</div>
         </div>
 
-        <div style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: 28, padding: 24, color: '#fff', marginTop: 20, boxShadow: '0 20px 40px -10px rgba(118,75,162,0.5)', position: 'relative', overflow: 'hidden'}}>
-          <div style={{position: 'absolute', top: -40, right: -40, width: 120, height: 120, background: 'rgba(255,255,255,0.15)', borderRadius: '50%'}}></div>
-          <p style={{margin: 0, opacity: 0.8, fontSize: 12, letterSpacing: 1}}>TOTAL THIS MONTH</p>
-          <h1 style={{margin: '8px 0', fontSize: 42, fontWeight: 900, letterSpacing: -1}}>₹{totalMonth.toLocaleString('en-IN')}</h1>
-          <div style={{display: 'flex', gap: 8, marginTop: 14}}>
-            {(['Food','Gym','Travel','Shopping'] as Cat[]).map(c=>(
-              <div key={c} style={{background: 'rgba(255,255,255,0.2)', backdropFilter: 'blur(10px)', padding: '6px 12px', borderRadius: 20, fontSize: 11, fontWeight: 600}}>{catEmoji[c]} ₹{filtered.filter(e=>e.cat===c).reduce((s,e)=>s+e.amount,0)}</div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{background: '#fff', borderRadius: 22, padding: 16, marginTop: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}>
-          <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12}}>
-            <b style={{fontSize: 14}}>📅 Calendar</b>
-            <input type="month" value={viewMonth} onChange={e=>setViewMonth(e.target.value)} style={{border: 0, background: '#f5f5ff', padding: '6px 12px', borderRadius: 10, fontWeight: 700, fontSize: 12}}/>
-          </div>
-          <div style={{display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 4, textAlign: 'center', fontSize: 10, color: '#aaa', marginBottom: 6}}><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
-          <div style={{display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6}}>
-            {daysArr.map((d,i)=> d===null? <div key={i}></div> : (
-              <div key={i} style={{aspectRatio: '1', borderRadius: 12, background: getDayTotal(d)>0? `linear-gradient(135deg, #667eea, #764ba2)` : '#f8f8ff', color: getDayTotal(d)>0? '#fff' : '#333', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: 12, boxShadow: getDayTotal(d)>0? '0 6px 12px rgba(102,126,234,0.3)' : 'none'}}>
-                {d}{getDayTotal(d)>0 && <span style={{fontSize: 7}}>₹{getDayTotal(d)>99? Math.round(getDayTotal(d)/1000)+'k' : getDayTotal(d)}</span>}
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div style={{background: '#fff', borderRadius: 22, padding: 16, marginTop: 16, boxShadow: '0 10px 30px rgba(0,0,0,0.05)'}}>
-          <div style={{display: 'flex', gap: 8}}>
-            <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Kya kharida? ex: Biryani" style={{flex: 1, padding: 14, borderRadius: 14, border: 0, background: '#f6f6ff', outline: 'none', fontWeight: 600}}/>
-            <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" placeholder="₹" style={{width: 80, padding: 14, borderRadius: 14, border: 0, background: '#f6f6ff', outline: 'none', fontWeight: 700}}/>
-          </div>
-          <div style={{display: 'flex', gap: 8, marginTop: 10}}>
-            <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{flex: 1, padding: 12, borderRadius: 14, border: 0, background: '#f6f6ff'}}/>
-            <select value={cat} onChange={e=>setCat(e.target.value as Cat)} style={{padding: 12, borderRadius: 14, border: 0, background: '#f6f6ff', fontWeight: 600}}>{Object.keys(catColor).map(k=><option key={k}>{k}</option>)}</select>
-            <button onClick={add} style={{padding: '12px 22px', borderRadius: 14, background: 'linear-gradient(135deg, #667eea, #764ba2)', color: '#fff', border: 0, fontWeight: 800, boxShadow: '0 8px 16px rgba(102,126,234,0.3)'}}>Add +</button>
+        {/* Total Card - C gradient */}
+        <div style={{background:'linear-gradient(135deg,#7B5CFF 0%, #6B6CFF 50%, #9B59FF 100%)', borderRadius:28, padding:22, marginTop:16, color:'#fff', position:'relative', overflow:'hidden'}}>
+          <div style={{position:'absolute', right:-30, top:-30, width:120, height:120, background:'rgba(255,255,255,0.15)', borderRadius:'50%'}}/>
+          <p style={{margin:0, fontSize:12, letterSpacing:2, opacity:0.85}}>TOTAL THIS MONTH</p>
+          <h1 style={{margin:'6px 0', fontSize:46, fontWeight:900}}>₹{total.toLocaleString('en-IN')}</h1>
+          <div style={{display:'flex', gap:8, flexWrap:'wrap', marginTop:8}}>
+            {(['Food','Gym','Travel','Shopping'] as Cat[]).map(c=>{
+              const sum = filtered.filter(e=> e.cat===c).reduce((s,e)=> s+e.amount,0)
+              return <span key={c} style={{background:'rgba(255,255,255,0.22)', padding:'6px 10px', borderRadius:20, fontSize:12}}>{catMeta[c].emoji} ₹{sum}</span>
+            })}
           </div>
         </div>
 
-        <div style={{marginTop: 18, display: 'grid', gap: 10}}>
-          {filtered.map(e=>(
-            <div key={e.id} style={{background: '#fff', padding: 14, borderRadius: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 16px rgba(0,0,0,0.04)'}}>
-              <div style={{display: 'flex', gap: 12, alignItems: 'center'}}>
-                <div style={{width: 44, height: 44, borderRadius: 12, background: catColor[e.cat]+'20', display: 'grid', placeItems: 'center', fontSize: 20}}>{catEmoji[e.cat]}</div>
-                <div><div style={{fontWeight: 700}}>{e.title}</div><div style={{fontSize: 11, color: '#999'}}>{e.dateISO} • {e.cat}</div></div>
-              </div>
-              <div style={{display: 'flex', gap: 10, alignItems: 'center'}}><b style={{fontSize: 15}}>₹{e.amount}</b><button onClick={()=>del(e.id)} style={{border: 0, background: '#fff0f0', color: '#ff4d4d', width: 30, height: 30, borderRadius: 10}}>✕</button></div>
+        {/* Breakdown - NEW */}
+        {total>0 && (
+          <div style={{background:'#fff', borderRadius:22, padding:16, marginTop:14, boxShadow:'0 4px 20px rgba(0,0,0,0.04)'}}>
+            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12}}>
+              <h3 style={{margin:0, fontSize:16}}>Breakdown</h3><span style={{fontSize:12, color:'#888'}}>{new Date(viewMonth).toLocaleString('en-US',{month:'long', year:'numeric'})}</span>
+            </div>
+            <div style={{display:'grid', gap:10}}>
+              {byCat.map(([c,sum])=>{
+                const pct = Math.round((sum/total)*100)
+                return (
+                  <div key={c} style={{display:'flex', justifyContent:'space-between', alignItems:'center', background:catMeta[c].bg, padding:'12px 14px', borderRadius:14}}>
+                    <div style={{display:'flex', gap:10, alignItems:'center'}}><span style={{fontSize:18}}>{catMeta[c].emoji}</span><div><div style={{fontWeight:700, fontSize:13}}>{c}</div><div style={{fontSize:12, color:'#666'}}>₹{sum}</div></div></div>
+                    <div style={{background:'#fff', color:catMeta[c].color, padding:'6px 12px', borderRadius:20, fontWeight:800, fontSize:12, border:`1px solid ${catMeta[c].color}30`}}>{pct}%</div>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Calendar */}
+        <div style={{background:'#fff', borderRadius:22, padding:16, marginTop:14, boxShadow:'0 4px 20px rgba(0,0,0,0.04)'}}>
+          <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10}}>
+            <h3 style={{margin:0}}>📅 Calendar</h3>
+            <input type="month" value={viewMonth} onChange={e=> setViewMonth(e.target.value)} style={{border:0, background:'#F6F6FF', padding:'8px 12px', borderRadius:12, fontWeight:600}}/>
+          </div>
+          <div style={{display:'grid', gridTemplateColumns:'repeat(7,1fr)', gap:6, textAlign:'center'}}>
+            {['S','M','T','W','T','F','S'].map(d=> <div key={d+d} style={{fontSize:12, color:'#999', padding:6}}>{d}</div>)}
+            {days.map((d,i)=>{
+              if(d===null) return <div key={i}/>
+              const isSelected = date===`${viewMonth}-${String(d).padStart(2,'0')}`
+              const hasExp = filtered.some(e=> Number(e.dateISO.slice(8,10))===d)
+              return <div key={i} onClick={()=> setDate(`${viewMonth}-${String(d).padStart(2,'0')}`)} style={{padding:12, borderRadius:12, background: isSelected? '#7B5CFF' : '#F6F6FF', color: isSelected? '#fff' : '#333', fontWeight: isSelected? 800 : 500, cursor:'pointer', position:'relative'}}>{d}{hasExp &&!isSelected && <span style={{position:'absolute', bottom:3, left:'50%', transform:'translateX(-50%)', width:4, height:4, background:'#7B5CFF', borderRadius:10}}/>}</div>
+            })}
+          </div>
+        </div>
+
+        {/* Input */}
+        <div style={{background:'#fff', borderRadius:22, padding:14, marginTop:14, display:'grid', gap:10, boxShadow:'0 4px 20px rgba(0,0,0,0.04)'}}>
+          <div style={{display:'flex', gap:8}}>
+            <input value={title} onChange={e=> setTitle(e.target.value)} placeholder="Kya kharida? ex: Biryani" style={{flex:1, padding:14, borderRadius:14, border:0, background:'#F6F6FF', outline:'none'}}/>
+            <input value={amount} onChange={e=> setAmount(e.target.value)} type="number" placeholder="₹" style={{width:80, padding:14, borderRadius:14, border:0, background:'#F6F6FF', outline:'none'}}/>
+          </div>
+          <div style={{display:'flex', gap:8}}>
+            <input type="date" value={date} onChange={e=> setDate(e.target.value)} style={{flex:1, padding:14, borderRadius:14, border:0, background:'#F6F6FF'}}/>
+            <select value={cat} onChange={e=> setCat(e.target.value as Cat)} style={{flex:1, padding:14, borderRadius:14, border:0, background:'#F6F6FF'}}><option>Food</option><option>Gym</option><option>Travel</option><option>Shopping</option><option>Other</option></select>
+            <button onClick={add} style={{padding:'0 22px', borderRadius:14, border:0, background:'linear-gradient(135deg,#7B5CFF,#4A7BF7)', color:'#fff', fontWeight:800}}>Add +</button>
+          </div>
+        </div>
+
+        {/* List */}
+        <div style={{marginTop:14, display:'grid', gap:8}}>
+          {filtered.slice(0,20).map(e=> (
+            <div key={e.id} style={{background:'#fff', padding:'12px 14px', borderRadius:14, display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+              <span><span>{catMeta[e.cat].emoji}</span> {e.title} • <small style={{color:'#888'}}>{e.dateISO}</small></span><span style={{display:'flex', gap:10}}><b>₹{e.amount}</b><span onClick={()=> del(e.id)} style={{color:'#ff6b6b', cursor:'pointer'}}>✕</span></span>
             </div>
           ))}
         </div>
       </div>
     </div>
   )
-}
+            }
