@@ -1,48 +1,53 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 
-type Cat = 'Food' | 'Transport' | 'Shopping' | 'Subscriptions' | 'Gym' | 'Other'
-type Expense = { id: string; title: string; amount: number; dateISO: string; cat: Cat }
-
-const catMeta: Record<Cat, {emoji: string, bg: string}> = {
-  Food: {emoji: '🍜', bg: '#FFB07A'},
-  Transport: {emoji: '🚗', bg: '#7AC8FF'},
-  Shopping: {emoji: '🛍️', bg: '#C9A6FF'},
-  Subscriptions: {emoji: '📅', bg: '#A6B4FF'},
-  Gym: {emoji: '💪', bg: '#7DFFB0'},
-  Other: {emoji: '💸', bg: '#FF8FA8'},
-}
+type Expense = { id: string; title: string; amount: number; cat: string }
 
 export default function App() {
   const [expenses, setExpenses] = useState<Expense[]>(() => {
-    try { const s = localStorage.getItem('sw-c'); return s? JSON.parse(s) : [
-      {id:'1', title:'Food', amount:340, dateISO:'2024-09-10', cat:'Food'},
-      {id:'2', title:'Transport', amount:120, dateISO:'2024-09-11', cat:'Transport'},
-      {id:'3', title:'Shopping', amount:520, dateISO:'2024-09-12', cat:'Shopping'},
-      {id:'4', title:'Subscriptions', amount:304.32, dateISO:'2024-09-13', cat:'Subscriptions'},
-    ]} catch { return [] }
+    const saved = localStorage.getItem('spendwise-c')
+    return saved? JSON.parse(saved) : [
+      { id: '1', title: 'Food', amount: 340, cat: 'Food' },
+      { id: '2', title: 'Transport', amount: 120, cat: 'Transport' },
+      { id: '3', title: 'Shopping', amount: 520, cat: 'Shopping' },
+    ]
   })
   const [title, setTitle] = useState('')
   const [amount, setAmount] = useState('')
-  const [cat, setCat] = useState<Cat>('Food')
-  const [viewMonth] = useState('2024-09')
+  const [cat, setCat] = useState('Food')
 
-  useEffect(() => { localStorage.setItem('sw-c', JSON.stringify(expenses)) }, [expenses])
+  useEffect(() => {
+    localStorage.setItem('spendwise-c', JSON.stringify(expenses))
+  }, [expenses])
 
-  const filtered = useMemo(() => expenses, [expenses])
-  const total = filtered.reduce((s,e)=> s+e.amount, 0)
-
+  const total = expenses.reduce((a, b) => a + b.amount, 0)
   const add = () => {
-    if(!title.trim()||!amount) return
-    setExpenses([{id:Date.now().toString(), title:title.trim(), amount:Number(amount), cat, dateISO:new Date().toISOString().slice(0,10)},...expenses])
+    if (!title ||!amount) return
+    setExpenses([{ id: Date.now().toString(), title, amount: Number(amount), cat },...expenses])
     setTitle(''); setAmount('')
-  }
-  const del = (id:string) => setExpenses(expenses.filter(e=> e.id!==id))
-
-  const getPercent = (c: Cat) => {
-    if(total===0) return 0
-    const sum = filtered.filter(e=> e.cat===c).reduce((s,e)=> s+e.amount, 0)
-    return Math.round((sum/total)*100)
   }
 
   return (
-    <div style={{minHeight:'100vh', background:'linear-gradient(160deg, #7B5CFF 0%, #5B3DF6 35%, #4A7BF
+    <div style={{ minHeight: '100vh', background: 'linear-gradient(160deg, #7B5CFF, #4A7BF7)', padding: 16, fontFamily: 'system-ui' }}>
+      <div style={{ maxWidth: 400, margin: '0 auto' }}>
+        <h2 style={{ color: '#fff', fontWeight: 800 }}>ExpenseTrack</h2>
+        <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 24, padding: 24, textAlign: 'center', color: '#fff', marginTop: 16 }}>
+          <p style={{ margin: 0 }}>September 2024</p>
+          <h1 style={{ margin: '8px 0', fontSize: 42 }}>${total.toFixed(2)}</h1>
+          <p style={{ margin: 0, opacity: 0.8 }}>Total Expenses</p>
+        </div>
+        <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: 20, padding: 14, marginTop: 16, display: 'flex', gap: 8 }}>
+          <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Kya kharida?" style={{ flex: 1, padding: 12, borderRadius: 12, border: 0 }} />
+          <input value={amount} onChange={e => setAmount(e.target.value)} type="number" placeholder="$" style={{ width: 80, padding: 12, borderRadius: 12, border: 0 }} />
+          <button onClick={add} style={{ padding: '12px 16px', borderRadius: 12, border: 0, background: '#fff', color: '#6C4DFF', fontWeight: 700 }}>Add</button>
+        </div>
+        <div style={{ marginTop: 16, display: 'grid', gap: 10 }}>
+          {expenses.map(e => (
+            <div key={e.id} style={{ background: 'rgba(255,255,255,0.15)', padding: 14, borderRadius: 16, color: '#fff', display: 'flex', justifyContent: 'space-between' }}>
+              <span>{e.title} - {e.cat}</span><span>${e.amount}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
