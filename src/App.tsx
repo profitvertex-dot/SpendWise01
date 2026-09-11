@@ -28,7 +28,7 @@ export default function App() {
 
         <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 10}}>
           <div><h1 style={{margin: 0, fontSize: 26, fontWeight: 900}}>SpendWise</h1><p style={{margin: 0, opacity: 0.5, fontSize: 12}}>Track smart, spend smarter ✨</p></div>
-          <div style={{width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg, #667eea, #764ba2)', display: 'grid', placeItems: 'center', color: '#fff', fontWeight: 800}}>S</div>
+          <img src="/logo.png" style={{width: 44, height: 44, borderRadius: 14, boxShadow: '0 4px 12px rgba(102,126,234,0.3)'}} />
         </div>
 
         <div style={{background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', borderRadius: 28, padding: 24, color: '#fff', marginTop: 20, boxShadow: '0 20px 40px -10px rgba(118,75,162,0.5)', position: 'relative', overflow: 'hidden'}}>
