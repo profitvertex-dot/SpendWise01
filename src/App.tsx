@@ -1,71 +1,89 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 
 type Cat = 'Food' | 'Gym' | 'Travel' | 'Shopping' | 'Other'
-type Expense = { id: string, title: string, amount: number, date: string, cat: Cat }
+type Expense = { id: string, title: string, amount: number, dateISO: string, cat: Cat }
 
 export default function App() {
-  const [expenses, setExpenses] = useState<Expense[]>(() => JSON.parse(localStorage.getItem('sw-pro') || '[]'))
+  const [expenses, setExpenses] = useState<Expense[]>(() => JSON.parse(localStorage.getItem('sw-cal') || '[]'))
   const [title, setTitle] = useState(''); const [amount, setAmount] = useState(''); const [cat, setCat] = useState<Cat>('Food')
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0,10))
+  const [viewMonth, setViewMonth] = useState(() => new Date().toISOString().slice(0,7)) // YYYY-MM
 
-  useEffect(() => { localStorage.setItem('sw-pro', JSON.stringify(expenses)) }, [expenses])
+  useEffect(() => { localStorage.setItem('sw-cal', JSON.stringify(expenses)) }, [expenses])
 
-  const total = expenses.reduce((s,e) => s+e.amount, 0)
+  const filtered = useMemo(() => expenses.filter(e=>e.dateISO.startsWith(viewMonth)), [expenses, viewMonth])
+  const totalMonth = filtered.reduce((s,e)=>s+e.amount,0)
+  const totalAll = expenses.reduce((s,e)=>s+e.amount,0)
+
   const add = () => {
     if(!title ||!amount) return
-    setExpenses([{id: Date.now().toString(), title, amount: Number(amount), cat, date: new Date().toLocaleDateString()},...expenses])
+    setExpenses([{id: Date.now().toString(), title, amount: Number(amount), cat, dateISO: date},...expenses])
     setTitle(''); setAmount('')
   }
-  const del = (id: string) => setExpenses(expenses.filter(e=>e.id!==id))
+  const del = (id:string) => setExpenses(expenses.filter(e=>e.id!==id))
 
-  const byCat = (c: Cat) => expenses.filter(e=>e.cat===c).reduce((s,e)=>s+e.amount,0)
+  // Calendar Logic
+  const [y,m] = viewMonth.split('-').map(Number)
+  const daysInMonth = new Date(y, m, 0).getDate()
+  const firstDay = new Date(y, m-1, 1).getDay()
+  const daysArr = Array(firstDay).fill(null).concat([...Array(daysInMonth)].map((_,i)=>i+1))
+
+  const getDayTotal = (day: number) => {
+    const d = `${viewMonth}-${String(day).padStart(2,'0')}`
+    return expenses.filter(e=>e.dateISO===d).reduce((s,e)=>s+e.amount,0)
+  }
 
   return (
-    <div style={{maxWidth: 420, margin: '0 auto', fontFamily: 'system-ui', padding: 20, paddingBottom: 80}}>
-      <h1 style={{fontWeight: 900, letterSpacing: -1}}>SpendWise 💸</h1>
+    <div style={{maxWidth: 440, margin: '0 auto', fontFamily: 'system-ui', padding: 16, paddingBottom: 90}}>
+      <div style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center'}}>
+        <h1 style={{fontWeight: 900, letterSpacing: -1, margin: 0}}>SpendWise 💸</h1>
+        <input type="month" value={viewMonth} onChange={e=>setViewMonth(e.target.value)} style={{padding: 8, borderRadius: 10, border: '1.5px solid #eee', fontWeight: 700}}/>
+      </div>
 
-      <div style={{background: '#111', color: '#fff', padding: 22, borderRadius: 20, marginTop: 16}}>
-        <p style={{opacity: 0.6, margin: 0}}>Total Spent</p>
-        <h2 style={{fontSize: 38, margin: '6px 0 0'}}>₹{total.toLocaleString('en-IN')}</h2>
-        <div style={{display:'flex', gap: 8, marginTop: 14, flexWrap: 'wrap'}}>
-          {(['Food','Gym','Travel','Shopping'] as Cat[]).map(c=>(
-            <span key={c} style={{background: '#222', padding: '4px 10px', borderRadius: 20, fontSize: 12}}>{c}: ₹{byCat(c)}</span>
+      <div style={{background: '#111', color: '#fff', padding: 20, borderRadius: 20, marginTop: 16}}>
+        <div style={{display: 'flex', justifyContent: 'space-between'}}>
+          <div><p style={{opacity: 0.6, margin: 0, fontSize: 12}}>THIS MONTH ({viewMonth})</p><h2 style={{fontSize: 32, margin: '4px 0 0'}}>₹{totalMonth.toLocaleString('en-IN')}</h2></div>
+          <div style={{textAlign: 'right'}}><p style={{opacity: 0.6, margin: 0, fontSize: 12}}>ALL TIME</p><h3 style={{margin: '4px 0 0'}}>₹{totalAll.toLocaleString('en-IN')}</h3></div>
+        </div>
+      </div>
+
+      {/* CALENDAR */}
+      <div style={{background: '#fff', border: '1.5px solid #f0f0f0', borderRadius: 18, padding: 14, marginTop: 14}}>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6, textAlign: 'center', fontSize: 11, color: '#999', marginBottom: 8}}>
+          <span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span>
+        </div>
+        <div style={{display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 6}}>
+          {daysArr.map((d,i)=> d===null? <div key={i}></div> : (
+            <div key={i} style={{aspectRatio: '1', borderRadius: 10, background: getDayTotal(d)>0? '#111' : '#f7f7f7', color: getDayTotal(d)>0? '#fff' : '#111', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', fontSize: 12, fontWeight: 600}}>
+              <span>{d}</span>
+              {getDayTotal(d)>0 && <span style={{fontSize: 8, marginTop: 2}}>₹{getDayTotal(d)}</span>}
+            </div>
           ))}
         </div>
       </div>
 
-      {/* Simple Bar Graph */}
-      <div style={{display: 'flex', alignItems: 'end', gap: 8, height: 80, marginTop: 18, padding: '0 4px'}}>
-        {expenses.slice(0,7).reverse().map(e=>(
-          <div key={e.id} style={{flex: 1, background: '#111', height: `${Math.min(100, (e.amount / (Math.max(...expenses.map(x=>x.amount),1)))*100)}%`, borderRadius: 8, minHeight: 8}}></div>
-        ))}
+      {/* ADD */}
+      <div style={{display: 'flex', gap: 8, marginTop: 14}}>
+        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Kya kharida?" style={{flex: 1, padding: 14, borderRadius: 12, border: '1.5px solid #eee'}}/>
+        <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" placeholder="₹" style={{width: 70, padding: 14, borderRadius: 12, border: '1.5px solid #eee'}}/>
+      </div>
+      <div style={{display: 'flex', gap: 8, marginTop: 8}}>
+        <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{flex: 1, padding: 12, borderRadius: 12, border: '1.5px solid #eee'}}/>
+        <select value={cat} onChange={e=>setCat(e.target.value as Cat)} style={{padding: 12, borderRadius: 12, border: '1.5px solid #eee'}}><option>Food</option><option>Gym</option><option>Travel</option><option>Shopping</option><option>Other</option></select>
+        <button onClick={add} style={{padding: '12px 18px', borderRadius: 12, background: '#111', color: '#fff', border: 0, fontWeight: 700}}>Add</button>
       </div>
 
-      <div style={{display: 'flex', gap: 8, marginTop: 18}}>
-        <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="Kya kharida?" style={{flex: 1, padding: 14, borderRadius: 12, border: '1.5px solid #eee', outline: 'none'}}/>
-        <input value={amount} onChange={e=>setAmount(e.target.value)} type="number" placeholder="₹" style={{width: 75, padding: 14, borderRadius: 12, border: '1.5px solid #eee'}}/>
-      </div>
-      <div style={{display: 'flex', gap: 8, marginTop: 10}}>
-        <select value={cat} onChange={e=>setCat(e.target.value as Cat)} style={{flex: 1, padding: 12, borderRadius: 12, border: '1.5px solid #eee'}}>
-          <option>Food</option><option>Gym</option><option>Travel</option><option>Shopping</option><option>Other</option>
-        </select>
-        <button onClick={add} style={{flex: 1, padding: 12, borderRadius: 12, background: '#111', color: '#fff', border: 0, fontWeight: 700}}> + Add Expense</button>
-      </div>
-
-      <div style={{marginTop: 22, display: 'grid', gap: 10}}>
-        {expenses.map(e => (
-          <div key={e.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 16px', border: '1px solid #f0f0f0', borderRadius: 14, background: '#fff'}}>
-            <div>
-              <div style={{fontWeight: 600}}>{e.title} <span style={{fontSize: 10, background: '#f3f3f3', padding: '2px 8px', borderRadius: 10, marginLeft: 6}}>{e.cat}</span></div>
-              <div style={{fontSize: 12, color: '#999', marginTop: 2}}>{e.date}</div>
-            </div>
-            <div style={{display: 'flex', alignItems: 'center', gap: 12}}>
-              <b>₹{e.amount}</b>
-              <button onClick={()=>del(e.id)} style={{border: 0, background: '#ffe8e8', color: '#ff2e2e', width: 28, height: 28, borderRadius: 8}}>✕</button>
-            </div>
+      {/* LIST - Month Filtered */}
+      <h3 style={{margin: '20px 0 10px', fontSize: 14, opacity: 0.6}}>{viewMonth} ke {filtered.length} Records</h3>
+      <div style={{display: 'grid', gap: 8}}>
+        {filtered.map(e => (
+          <div key={e.id} style={{display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 14px', border: '1px solid #f0f0f0', borderRadius: 12}}>
+            <div><div style={{fontWeight: 600}}>{e.title} <small style={{background: '#f3f3f3', padding: '2px 6px', borderRadius: 8, fontSize: 10}}>{e.cat}</small></div><div style={{fontSize: 11, color: '#999'}}>{e.dateISO}</div></div>
+            <div style={{display: 'flex', gap: 10, alignItems: 'center'}}><b>₹{e.amount}</b><button onClick={()=>del(e.id)} style={{border: 0, background: '#ffe8e8', color: '#ff2e2e', width: 26, height: 26, borderRadius: 7}}>✕</button></div>
           </div>
         ))}
-        {expenses.length===0 && <p style={{textAlign: 'center', color: '#aaa', marginTop: 40}}>Koi expense nahi, add kar ke dekh 😎</p>}
+        {filtered.length===0 && <p style={{textAlign: 'center', color: '#aaa', marginTop: 20}}>Is month me kuch nahi hai. Date change karke add kar!</p>}
       </div>
     </div>
   )
-}
+                                                                                                                                                   }
